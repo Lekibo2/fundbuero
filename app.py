@@ -29,10 +29,97 @@ IMAGE_SIZE = (224, 224)
 # --------------------------------------------------
 
 st.set_page_config(
-    page_title="Fundbüro Kleidung",
+    page_title="Fundbüro",
     page_icon="👕",
     layout="wide"
 )
+
+st.markdown(
+    """
+    <style>
+        /* Seitenbereich */
+        .block-container {
+            padding-top: 1rem;
+            padding-left: 3rem;
+            padding-right: 3rem;
+            max-width: 1400px;
+        }
+
+        /* Obere Leiste */
+        .topbar {
+            background-color: #1f2937;
+            padding: 22px 30px;
+            border-radius: 14px;
+            margin-bottom: 25px;
+            text-align: center;
+        }
+
+        .topbar h1 {
+            color: white;
+            margin: 0;
+            font-size: 32px;
+        }
+
+        /* Zentrierte Buttons */
+        .center-button {
+            display: flex;
+            justify-content: center;
+            margin: 18px 0 28px 0;
+        }
+
+        /* Karten für Einträge */
+        .entry-card {
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 12px;
+            min-height: 300px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        }
+
+        .entry-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-top: 8px;
+            color: #1f2937;
+        }
+
+        .entry-info {
+            font-size: 13px;
+            color: #64748b;
+            margin-top: 5px;
+        }
+
+        /* Upload-Bereich */
+        .upload-area {
+            margin-top: 30px;
+            padding: 25px;
+            text-align: center;
+            background-color: #f1f5f9;
+            border-radius: 14px;
+        }
+
+        /* Sidebar ausblenden */
+        [data-testid="stSidebar"] {
+            display: none;
+        }
+
+        /* Buttons etwas größer */
+        .stButton > button {
+            border-radius: 8px;
+            font-weight: 600;
+        }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+if "page" not in st.session_state:
+    st.session_state.page = "home"
+
+
+def go_to_page(page_name):
+    st.session_state.page = page_name
 
 
 # --------------------------------------------------
@@ -223,89 +310,136 @@ def display_entry(entry):
         )
 
 
-# --------------------------------------------------
-# Seiten-Navigation
-# --------------------------------------------------
 
-st.sidebar.title("Fundbüro")
-
-page = st.sidebar.radio(
-    "Navigation",
-    [
-        "Startseite",
-        "Kleidungsstück hochladen",
-        "Alle Einträge"
-    ]
-)
 
 
 # --------------------------------------------------
 # Startseite
 # --------------------------------------------------
 
-if page == "Startseite":
-    st.title("👕 Fundbüro für Kleidungsstücke")
-
-    st.write(
-        "Lade ein Foto eines gefundenen Kleidungsstücks hoch. "
-        "Das Modell erkennt automatisch die passende Kategorie."
+if st.session_state.page == "home":
+    # Obere Leiste
+    st.markdown(
+        """
+        <div class="topbar">
+            <h1>👕 Fundbüro</h1>
+        </div>
+        """,
+        unsafe_allow_html=True
     )
+
+    # Suchleiste
+    search_text = st.text_input(
+        "Suche",
+        placeholder="Nach Kategorie, Dateiname oder Datum suchen...",
+        label_visibility="collapsed"
+    )
+
+    # Alle-Einträge-Button
+    st.markdown('<div class="center-button">', unsafe_allow_html=True)
+
+    all_entries_button = st.button(
+        "Alle Einträge anzeigen",
+        use_container_width=False
+    )
+
+    if all_entries_button:
+        go_to_page("all")
+
+    st.markdown("</div>", unsafe_allow_html=True)
 
     dataframe = get_all_entries()
 
-    # Suchfeld auf der Startseite
-    search_text = st.text_input(
-        "🔎 Einträge durchsuchen",
-        placeholder="Zum Beispiel: Jacke, Schuhe oder 2026-09-21"
-    )
+    if search_text:
+        search_text_lower = search_text.lower()
+
+        dataframe = dataframe[
+            dataframe["category"]
+            .str.lower()
+            .str.contains(search_text_lower, na=False)
+            |
+            dataframe["filename"]
+            .str.lower()
+            .str.contains(search_text_lower, na=False)
+            |
+            dataframe["upload_date"]
+            .str.lower()
+            .str.contains(search_text_lower, na=False)
+        ]
+
+    st.subheader("Letzte Einträge")
 
     if dataframe.empty:
-        st.info("Bisher wurden noch keine Kleidungsstücke hochgeladen.")
-
-        if st.button("Ersten Eintrag hochladen"):
-            st.switch_page("app.py")
-
+        st.info("Bisher wurden noch keine Einträge gespeichert.")
     else:
-        filtered_dataframe = dataframe.copy()
+        latest_entries = dataframe.head(4)
 
-        if search_text:
-            search_text = search_text.lower()
+        # Vier horizontale Spalten
+        columns = st.columns(4)
 
-            filtered_dataframe = filtered_dataframe[
-                filtered_dataframe["category"]
-                .str.lower()
-                .str.contains(search_text, na=False)
-                |
-                filtered_dataframe["filename"]
-                .str.lower()
-                .str.contains(search_text, na=False)
-                |
-                filtered_dataframe["upload_date"]
-                .str.lower()
-                .str.contains(search_text, na=False)
-            ]
+        for column, (_, entry) in zip(columns, latest_entries.iterrows()):
+            with column:
+                st.markdown(
+                    '<div class="entry-card">',
+                    unsafe_allow_html=True
+                )
 
-        st.subheader("Neueste Einträge")
+                st.image(
+                    entry["image"],
+                    use_container_width=True
+                )
 
-        newest_entries = filtered_dataframe.head(6)
+                st.markdown(
+                    f'<div class="entry-title">{entry["category"]}</div>',
+                    unsafe_allow_html=True
+                )
 
-        if newest_entries.empty:
-            st.warning("Keine passenden Einträge gefunden.")
-        else:
-            for _, entry in newest_entries.iterrows():
-                display_entry(entry)
-                st.divider()
+                st.markdown(
+                    f'<div class="entry-info">'
+                    f'{entry["upload_date"]}'
+                    f'</div>',
+                    unsafe_allow_html=True
+                )
 
-        if st.button("Alle Einträge anzeigen"):
-            st.switch_page("app.py")
+                st.markdown(
+                    f'<div class="entry-info">'
+                    f'Erkennung: {entry["confidence"] * 100:.1f} %'
+                    f'</div>',
+                    unsafe_allow_html=True
+                )
+
+                st.markdown("</div>", unsafe_allow_html=True)
+
+    # Upload-Bereich
+    st.markdown(
+        """
+        <div class="upload-area">
+            <h3>Neuen Fund hinzufügen</h3>
+            <p>Fotografiere oder lade ein Kleidungsstück beziehungsweise einen Gegenstand hoch.</p>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+    upload_button = st.button(
+        "📤 Gegenstand hochladen",
+        use_container_width=True
+    )
+
+    if upload_button:
+        go_to_page("upload")
+
 
 
 # --------------------------------------------------
 # Upload-Seite
 # --------------------------------------------------
 
-elif page == "Kleidungsstück hochladen":
-    st.title("📤 Kleidungsstück hochladen")
+elif st.session_state.page == "upload":
+    st.title("📤 Gegenstand hochladen")
+
+    if st.button("← Zurück zur Startseite"):
+        go_to_page("home")
 
     uploaded_file = st.file_uploader(
         "Foto auswählen",
@@ -315,11 +449,14 @@ elif page == "Kleidungsstück hochladen":
     if uploaded_file is not None:
         image = Image.open(uploaded_file)
 
-        st.subheader("Hochgeladenes Bild")
-        st.image(image, caption=uploaded_file.name, width=400)
+        st.image(
+            image,
+            caption=uploaded_file.name,
+            width=400
+        )
 
         if st.button("Bild analysieren", type="primary"):
-            with st.spinner("Das Kleidungsstück wird erkannt..."):
+            with st.spinner("Der Gegenstand wird erkannt..."):
                 category, confidence = predict_category(image)
 
             st.success(f"Erkannte Kategorie: {category}")
@@ -329,8 +466,9 @@ elif page == "Kleidungsstück hochladen":
                 f"{confidence * 100:.2f} %"
             )
 
-            # Datum und Uhrzeit des Uploads
-            upload_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            upload_date = datetime.now().strftime(
+                "%Y-%m-%d %H:%M:%S"
+            )
 
             image_bytes = uploaded_file.getvalue()
 
@@ -342,17 +480,24 @@ elif page == "Kleidungsstück hochladen":
                 image_bytes=image_bytes
             )
 
+            st.cache_data.clear()
+
             st.success("Der Eintrag wurde erfolgreich gespeichert.")
 
-            st.cache_data.clear()
+            if st.button("Zur Startseite"):
+                go_to_page("home")
+
 
 
 # --------------------------------------------------
 # Alle Einträge
 # --------------------------------------------------
 
-elif page == "Alle Einträge":
-    st.title("📋 Alle Fundbüro-Einträge")
+elif st.session_state.page == "all":
+    st.title("📋 Alle Einträge")
+
+    if st.button("← Zurück zur Startseite"):
+        go_to_page("home")
 
     dataframe = get_all_entries()
 
@@ -361,20 +506,35 @@ elif page == "Alle Einträge":
     else:
         category_filter = st.selectbox(
             "Nach Kategorie filtern",
-            ["Alle"] + sorted(dataframe["category"].unique().tolist())
+            ["Alle"] + sorted(
+                dataframe["category"].unique().tolist()
+            )
         )
-
-        filtered_dataframe = dataframe.copy()
 
         if category_filter != "Alle":
-            filtered_dataframe = filtered_dataframe[
-                filtered_dataframe["category"] == category_filter
+            dataframe = dataframe[
+                dataframe["category"] == category_filter
             ]
 
-        st.write(
-            f"{len(filtered_dataframe)} Einträge gefunden."
-        )
+        st.write(f"{len(dataframe)} Einträge gefunden.")
 
-        for _, entry in filtered_dataframe.iterrows():
-            display_entry(entry)
+        for _, entry in dataframe.iterrows():
+            left_column, right_column = st.columns([1, 3])
+
+            with left_column:
+                st.image(
+                    entry["image"],
+                    use_container_width=True
+                )
+
+            with right_column:
+                st.subheader(entry["category"])
+                st.write(f"Dateiname: {entry['filename']}")
+                st.write(f"Upload-Datum: {entry['upload_date']}")
+                st.write(
+                    "Erkennungswahrscheinlichkeit: "
+                    f"{entry['confidence'] * 100:.2f} %"
+                )
+
             st.divider()
+
