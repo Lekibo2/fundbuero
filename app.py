@@ -45,7 +45,21 @@ def load_model():
         st.error(f"Modell nicht gefunden: {MODEL_PATH}")
         st.stop()
 
-    return tf.keras.models.load_model(MODEL_PATH)
+    class CompatibleDepthwiseConv2D(tf.keras.layers.DepthwiseConv2D):
+        def __init__(self, *args, **kwargs):
+            # Dieser Parameter wurde beim alten Modell gespeichert,
+            # wird von der aktuellen Layer-Version aber nicht benötigt.
+            kwargs.pop("groups", None)
+            super().__init__(*args, **kwargs)
+
+    return tf.keras.models.load_model(
+        MODEL_PATH,
+        custom_objects={
+            "DepthwiseConv2D": CompatibleDepthwiseConv2D
+        },
+        compile=False
+    )
+
 
 
 @st.cache_data
