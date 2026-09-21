@@ -81,12 +81,12 @@ st.markdown(
             font-size: 18px;
             font-weight: 600;
             margin-top: 8px;
-            color: #1f2937;
+            color: #80d9ff;
         }
 
         .entry-info {
             font-size: 13px;
-            color: #64748b;
+            color: #bfecff;
             margin-top: 5px;
         }
 
